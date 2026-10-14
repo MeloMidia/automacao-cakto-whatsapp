@@ -67,9 +67,17 @@ test('recebe, autentica e deduplica o webhook por HTTP', async () => {
     const invalid = await fetch(url, {
       method: 'POST',
       headers: { ...headers, 'x-cakto-signature': 'v1=adulterada' },
-      body,
+      body: JSON.stringify({ ...JSON.parse(body), secret: 'segredo-incorreto' }),
     });
     assert.equal(invalid.status, 401);
+
+    const bodySecretFallback = await fetch(url, {
+      method: 'POST',
+      headers: { ...headers, 'x-cakto-signature': 'v1=adulterada' },
+      body,
+    });
+    assert.equal(bodySecretFallback.status, 202);
+    assert.equal((await bodySecretFallback.json()).duplicates, 1);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     db.close();

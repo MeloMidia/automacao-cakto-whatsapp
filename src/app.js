@@ -25,7 +25,6 @@ export function createApp({ config, db, logger }) {
 
     const timestamp = request.get('X-Cakto-Timestamp');
     const signature = request.get('X-Cakto-Signature');
-    const hasSignatureHeaders = Boolean(timestamp || signature);
     const validSignature = timestamp && signature
       ? verifyCaktoSignature({
           rawBody: request.body,
@@ -35,8 +34,9 @@ export function createApp({ config, db, logger }) {
         })
       : false;
 
-    // Compatibilidade com webhooks antigos, que autenticam pelo segredo no corpo.
-    const validBodySecret = !hasSignatureHeaders && verifyBodySecret(payload.secret, config.cakto.secret);
+    // A Cakto documenta as duas formas de validação. O testador do painel pode
+    // enviar o secret correto no corpo mesmo quando o header não é aproveitável.
+    const validBodySecret = verifyBodySecret(payload.secret, config.cakto.secret);
     if (!validSignature && !validBodySecret) {
       logger.warn('Webhook Cakto rejeitado por autenticação');
       return response.status(401).json({ error: 'Assinatura inválida' });
