@@ -14,8 +14,8 @@ try {
 
 const logger = createLogger(config.logLevel);
 const db = createDatabase(config.databasePath);
-const app = createApp({ config, db, logger });
 const worker = startWorker({ db, config, logger });
+const app = createApp({ config, db, logger, onJobsQueued: worker.wake });
 
 const server = app.listen(config.port, () => {
   logger.info('Automação iniciada', { port: config.port, dryRun: config.dryRun });

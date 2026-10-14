@@ -103,6 +103,22 @@ export function markFailed(db, id, error, attempts, maxAttempts) {
   );
 }
 
+export function nextJobDelayMs(db, maxAttempts) {
+  const row = db.prepare(`
+    SELECT next_attempt_at
+    FROM message_jobs
+    WHERE status IN ('pending', 'retry') AND attempts < ?
+    ORDER BY next_attempt_at ASC
+    LIMIT 1
+  `).get(maxAttempts);
+
+  if (!row) return null;
+
+  const readyAt = Date.parse(`${row.next_attempt_at.replace(' ', 'T')}Z`);
+  if (!Number.isFinite(readyAt)) return 1_000;
+  return Math.max(0, readyAt - Date.now());
+}
+
 export function queueStats(db) {
   return db.prepare(`
     SELECT status, COUNT(*) AS count

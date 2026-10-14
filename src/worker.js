@@ -1,16 +1,33 @@
-import { claimNextJob, markFailed, markSent } from './database.js';
+import { claimNextJob, markFailed, markSent, nextJobDelayMs } from './database.js';
 import { sendCommunityInvite } from './evolution.js';
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export function startWorker({ db, config, logger, intervalMs = 1000, send = sendCommunityInvite }) {
-  let timer;
+export function startWorker({ db, config, logger, send = sendCommunityInvite }) {
+  let timer = null;
   let running = false;
   let stopped = false;
+  let wakeRequested = false;
+
+  const schedule = (delayMs) => {
+    if (stopped) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      void tick();
+    }, delayMs);
+    timer.unref();
+  };
 
   const tick = async () => {
-    if (running || stopped) return;
+    if (stopped) return;
+    if (running) {
+      wakeRequested = true;
+      return;
+    }
+
     running = true;
+    let nextDelay = null;
 
     try {
       let job;
@@ -36,19 +53,39 @@ export function startWorker({ db, config, logger, intervalMs = 1000, send = send
           await sleep(config.evolution.minSendIntervalMs);
         }
       }
+      nextDelay = nextJobDelayMs(db, config.maxSendAttempts);
+    } catch (error) {
+      logger.error('Falha no processamento da fila', { error: error.message });
+      nextDelay = 5_000;
     } finally {
       running = false;
     }
+
+    if (stopped) return;
+    if (wakeRequested) {
+      wakeRequested = false;
+      schedule(0);
+    } else if (nextDelay != null) {
+      schedule(Math.max(250, nextDelay));
+    }
   };
 
-  timer = setInterval(tick, intervalMs);
-  timer.unref();
-  void tick();
+  const wake = () => {
+    if (stopped) return;
+    if (running) {
+      wakeRequested = true;
+      return;
+    }
+    schedule(0);
+  };
+
+  wake();
 
   return {
+    wake,
     stop() {
       stopped = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     },
   };
 }

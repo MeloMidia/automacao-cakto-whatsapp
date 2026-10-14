@@ -1,14 +1,14 @@
 import express from 'express';
 import { approvedOrders, parseCaktoPayload, verifyBodySecret, verifyCaktoSignature } from './cakto.js';
-import { enqueueOrder, queueStats } from './database.js';
+import { enqueueOrder } from './database.js';
 import { firstName, normalizePhone } from './phone.js';
 
-export function createApp({ config, db, logger }) {
+export function createApp({ config, db, logger, onJobsQueued = () => {} }) {
   const app = express();
   app.disable('x-powered-by');
 
   app.get('/health', (_request, response) => {
-    response.json({ ok: true, dryRun: config.dryRun, queue: queueStats(db) });
+    response.json({ ok: true, dryRun: config.dryRun });
   });
 
   app.post('/webhooks/cakto', express.raw({ type: 'application/json', limit: '256kb' }), (request, response) => {
@@ -70,6 +70,8 @@ export function createApp({ config, db, logger }) {
       duplicates,
       invalidPhones,
     });
+
+    if (queued > 0) onJobsQueued();
 
     return response.status(202).json({ received: true, queued, duplicates, invalidPhones });
   });
