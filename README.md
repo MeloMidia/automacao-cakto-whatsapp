@@ -1,13 +1,13 @@
-# Cakto → WhatsApp: convite para a comunidade
+# Cakto → Evolution API: convite para a comunidade
 
-Serviço que recebe uma compra aprovada da Cakto e envia ao comprador, pela API oficial do WhatsApp, um convite para o grupo da comunidade.
+Serviço que recebe uma compra aprovada da Cakto e envia ao comprador, pela instância Evolution API já usada no sistemaMelo, um convite para o grupo da comunidade.
 
 ## Fluxo
 
 1. A Cakto envia o evento `purchase_approved` para `POST /webhooks/cakto`.
 2. O serviço valida a assinatura/segredo, o status, o produto e o telefone.
 3. O pedido entra em uma fila persistente e a Cakto recebe a confirmação imediatamente.
-4. O worker envia um template aprovado pelo WhatsApp e tenta novamente em caso de falha.
+4. O worker envia uma mensagem de texto pela Evolution API e tenta novamente em caso de falha.
 5. O `data.id` da Cakto é único no banco, então reenvios do mesmo webhook não duplicam a mensagem.
 
 O serviço aceita os formatos V1 (`data` como objeto) e V2 (`data` como lista) da Cakto. Por padrão, só a oferta principal envia convite; order bumps, upsells e downsells são ignorados.
@@ -15,25 +15,26 @@ O serviço aceita os formatos V1 (`data` como objeto) e V2 (`data` como lista) d
 ## Pré-requisitos
 
 - Node.js 22.5 ou superior, ou Docker;
-- um número configurado na **WhatsApp Business Platform (Cloud API)**;
-- um token permanente do System User da Meta com acesso ao número;
-- um template aprovado no WhatsApp Manager;
+- uma instância Evolution API conectada ao WhatsApp;
+- URL, API key e nome da instância Evolution;
 - uma URL pública com HTTPS para hospedar este serviço.
 
-## 1. Crie o template do WhatsApp
+## 1. Mensagem enviada
 
-No WhatsApp Manager, crie um template chamado `convite_comunidade_compra`, idioma **Português (Brasil)**, categoria **Utility**, usando variáveis nomeadas:
+Não é necessário criar nem aprovar um template. A automação envia este texto, preenchendo nome, produto e link:
 
 ```text
-Olá, {{nome}}! Sua compra do curso {{produto}} foi aprovada. 🎉
+Olá, {{nome}}! 🎉
 
-Entre agora no grupo exclusivo da comunidade:
+Seu pagamento do {{produto}} foi confirmado.
+
+A comunidade exclusiva faz parte da sua compra. Entre pelo link:
 {{link}}
 
-Se você não reconhece esta compra, ignore esta mensagem.
+Se precisar de ajuda, responda a esta mensagem.
 ```
 
-O texto definitivo e a categoria dependem da aprovação da Meta. Os nomes das três variáveis precisam ser exatamente `nome`, `produto` e `link`. Se você mudar o nome ou o idioma do template, atualize o `.env`.
+O texto pode ser alterado em `src/evolution.js`. Mantenha-o transacional e sem promoção para reduzir denúncias e bloqueios.
 
 ## 2. Configure o projeto
 
@@ -46,10 +47,11 @@ Edite `.env` e preencha:
 
 - `CAKTO_WEBHOOK_SECRET`: segredo que também será informado ao criar o webhook na Cakto;
 - `CAKTO_ALLOWED_PRODUCT_IDS`: ID do curso. É possível informar mais de um, separado por vírgulas;
-- `WHATSAPP_PHONE_NUMBER_ID`: ID do número na Meta, não o número de telefone;
-- `WHATSAPP_ACCESS_TOKEN`: token permanente armazenado apenas no servidor;
-- `WHATSAPP_GROUP_INVITE_URL`: link de convite do grupo;
-- `META_GRAPH_API_VERSION`: versão ativa configurada para o app da Meta.
+- `EVOLUTION_API_URL`: URL da mesma Evolution API usada pelo sistemaMelo;
+- `EVOLUTION_API_KEY`: chave da Evolution armazenada apenas no servidor;
+- `EVOLUTION_INSTANCE_NAME`: nome da instância, atualmente `sistemamelo` no CRM;
+- `EVOLUTION_MIN_SEND_INTERVAL_MS`: intervalo mínimo entre mensagens, padrão de 7 segundos;
+- `WHATSAPP_GROUP_INVITE_URL`: link de convite do grupo.
 
 Comece com `DRY_RUN=true`. Nesse modo o webhook e a fila funcionam, mas nenhuma mensagem real é enviada.
 
@@ -97,8 +99,10 @@ Confira `GET /health`: a fila deve mostrar uma mensagem em `sent`. Como `DRY_RUN
 - A assinatura vence em cinco minutos, reduzindo o risco de replay.
 - Apenas nome, telefone, produto e ID do pedido são guardados; documento e e-mail não são persistidos.
 - Falhas de envio são tentadas novamente até `MAX_SEND_ATTEMPTS`.
+- As mensagens são enviadas sequencialmente, com intervalo mínimo configurável.
 - Se o link do grupo vazar, revogue-o no WhatsApp e atualize `WHATSAPP_GROUP_INVITE_URL`.
 - O cliente precisa ter consentido em receber mensagens relacionadas à compra; mantenha o texto transacional.
+- A Evolution API não é uma integração oficial da Meta. Existe risco de desconexão ou bloqueio do número; use um número comercial dedicado e evite rajadas.
 
 ## Testes
 
@@ -106,4 +110,4 @@ Confira `GET /health`: a fila deve mostrar uma mensagem em `sent`. Como `DRY_RUN
 npm test
 ```
 
-Os testes cobrem autenticação do webhook, expiração da assinatura, V1/V2, filtro de produto, telefone e deduplicação.
+Os testes cobrem autenticação do webhook, expiração da assinatura, V1/V2, filtro de produto, telefone, deduplicação e o envio pela Evolution API.

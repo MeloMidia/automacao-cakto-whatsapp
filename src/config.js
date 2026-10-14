@@ -32,12 +32,11 @@ export function loadConfig() {
       ),
       mainProductOnly: boolean('CAKTO_MAIN_PRODUCT_ONLY', true),
     },
-    whatsapp: {
-      apiVersion: process.env.META_GRAPH_API_VERSION?.trim() || 'v23.0',
-      phoneNumberId: dryRun ? process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() : required('WHATSAPP_PHONE_NUMBER_ID'),
-      accessToken: dryRun ? process.env.WHATSAPP_ACCESS_TOKEN?.trim() : required('WHATSAPP_ACCESS_TOKEN'),
-      templateName: process.env.WHATSAPP_TEMPLATE_NAME?.trim() || 'convite_comunidade_compra',
-      templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'pt_BR',
+    evolution: {
+      apiUrl: dryRun ? process.env.EVOLUTION_API_URL?.trim() : required('EVOLUTION_API_URL'),
+      apiKey: dryRun ? process.env.EVOLUTION_API_KEY?.trim() : required('EVOLUTION_API_KEY'),
+      instanceName: dryRun ? process.env.EVOLUTION_INSTANCE_NAME?.trim() : required('EVOLUTION_INSTANCE_NAME'),
+      minSendIntervalMs: positiveInteger('EVOLUTION_MIN_SEND_INTERVAL_MS', 7000),
       groupInviteUrl: required('WHATSAPP_GROUP_INVITE_URL'),
     },
     dryRun,

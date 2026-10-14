@@ -1,5 +1,7 @@
 import { claimNextJob, markFailed, markSent } from './database.js';
-import { sendCommunityInvite } from './whatsapp.js';
+import { sendCommunityInvite } from './evolution.js';
+
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export function startWorker({ db, config, logger, intervalMs = 1000, send = sendCommunityInvite }) {
   let timer;
@@ -28,6 +30,10 @@ export function startWorker({ db, config, logger, intervalMs = 1000, send = send
             attempt: job.attempts,
             error: error.message,
           });
+        }
+
+        if (!stopped && !config.dryRun) {
+          await sleep(config.evolution.minSendIntervalMs);
         }
       }
     } finally {
