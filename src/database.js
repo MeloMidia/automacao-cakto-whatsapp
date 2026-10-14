@@ -7,7 +7,10 @@ export function createDatabase(databasePath) {
   fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
 
   const db = new DatabaseSync(resolvedPath);
-  db.exec('PRAGMA journal_mode = WAL;');
+  // A automação roda em uma única réplica. DELETE evita os arquivos auxiliares
+  // e locks contínuos do WAL em volumes persistentes de rede.
+  db.exec('PRAGMA journal_mode = DELETE;');
+  db.exec('PRAGMA synchronous = NORMAL;');
   db.exec('PRAGMA busy_timeout = 5000;');
   db.exec(`
     CREATE TABLE IF NOT EXISTS message_jobs (
@@ -50,34 +53,27 @@ export function enqueueOrder(db, job) {
 }
 
 export function claimNextJob(db, maxAttempts) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const job = db.prepare(`
-      SELECT * FROM message_jobs
-      WHERE status IN ('pending', 'retry')
-        AND attempts < ?
-        AND next_attempt_at <= CURRENT_TIMESTAMP
-      ORDER BY id ASC
-      LIMIT 1
-    `).get(maxAttempts);
+  // Primeiro fazemos somente leitura. Isso evita abrir e confirmar uma
+  // transação de escrita a cada polling quando não há nenhuma tarefa.
+  const job = db.prepare(`
+    SELECT * FROM message_jobs
+    WHERE status IN ('pending', 'retry')
+      AND attempts < ?
+      AND next_attempt_at <= CURRENT_TIMESTAMP
+    ORDER BY id ASC
+    LIMIT 1
+  `).get(maxAttempts);
 
-    if (!job) {
-      db.exec('COMMIT');
-      return null;
-    }
+  if (!job) return null;
 
-    db.prepare(`
-      UPDATE message_jobs
-      SET status = 'processing', attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(job.id);
+  const claimed = db.prepare(`
+    UPDATE message_jobs
+    SET status = 'processing', attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND status IN ('pending', 'retry')
+  `).run(job.id);
 
-    db.exec('COMMIT');
-    return { ...job, attempts: job.attempts + 1 };
-  } catch (error) {
-    db.exec('ROLLBACK');
-    throw error;
-  }
+  if (claimed.changes !== 1) return null;
+  return { ...job, attempts: job.attempts + 1 };
 }
 
 export function markSent(db, id, messageId) {
