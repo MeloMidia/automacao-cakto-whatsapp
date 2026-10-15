@@ -6,14 +6,26 @@ function evolutionBaseUrl(value) {
 
 export function buildCommunityInvite(job, groupInviteUrl) {
   return [
-    `Olá, ${job.customer_first_name}! 🎉`,
+    `Olá, ${job.customer_first_name}! 🚀`,
     '',
-    `Seu pagamento do ${job.product_name} foi confirmado.`,
+    '🎉 Sua inscrição no curso Autopeças no Mercado Livre foi confirmada!',
     '',
-    'A comunidade exclusiva faz parte da sua compra. Entre pelo link:',
+    'Seja muito bem-vindo à Melo Mídia!',
+    '',
+    'Além do curso, você tem acesso à nossa Comunidade Autopeças do Mercado Livre, um espaço exclusivo para aprender, trocar experiências e crescer no Mercado Livre.',
+    '',
+    '✅ Contato direto com a equipe da Melo Mídia para tirar dúvidas.',
+    '',
+    '✅ Troca de experiências com outros profissionais do setor de autopeças.',
+    '',
+    '✅ Plantão de dúvidas ao vivo toda terça-feira, às 19h, pelo Google Meet, com nossa equipe.',
+    '',
+    '👥 Entre agora na nossa comunidade:',
     groupInviteUrl,
     '',
-    'Se precisar de ajuda, responda a esta mensagem.',
+    'Estamos juntos nessa jornada! 💛',
+    '',
+    'Equipe Melo Mídia',
   ].join('\n');
 }
 

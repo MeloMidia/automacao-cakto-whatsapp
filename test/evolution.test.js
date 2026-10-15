@@ -11,9 +11,28 @@ const job = {
 
 test('monta uma mensagem transacional com o convite', () => {
   const text = buildCommunityInvite(job, 'https://chat.whatsapp.com/convite');
-  assert.match(text, /Olá, Maria!/);
-  assert.match(text, /pagamento do Curso Teste foi confirmado/);
-  assert.match(text, /https:\/\/chat\.whatsapp\.com\/convite/);
+  assert.equal(text, [
+    'Olá, Maria! 🚀',
+    '',
+    '🎉 Sua inscrição no curso Autopeças no Mercado Livre foi confirmada!',
+    '',
+    'Seja muito bem-vindo à Melo Mídia!',
+    '',
+    'Além do curso, você tem acesso à nossa Comunidade Autopeças do Mercado Livre, um espaço exclusivo para aprender, trocar experiências e crescer no Mercado Livre.',
+    '',
+    '✅ Contato direto com a equipe da Melo Mídia para tirar dúvidas.',
+    '',
+    '✅ Troca de experiências com outros profissionais do setor de autopeças.',
+    '',
+    '✅ Plantão de dúvidas ao vivo toda terça-feira, às 19h, pelo Google Meet, com nossa equipe.',
+    '',
+    '👥 Entre agora na nossa comunidade:',
+    'https://chat.whatsapp.com/convite',
+    '',
+    'Estamos juntos nessa jornada! 💛',
+    '',
+    'Equipe Melo Mídia',
+  ].join('\n'));
 });
 
 test('envia texto pela Evolution API', async () => {
@@ -44,7 +63,7 @@ test('envia texto pela Evolution API', async () => {
   assert.equal(result.messageId, 'evolution-message-123');
   assert.equal(captured.url, 'https://evolution.exemplo.com/message/sendText/sistemamelo');
   assert.equal(sentBody.number, '5511999999999');
-  assert.match(sentBody.text, /comunidade exclusiva/);
+  assert.match(sentBody.text, /Comunidade Autopeças do Mercado Livre/);
   assert.equal(captured.options.headers.apikey, 'api-key-secreta');
 });
 
