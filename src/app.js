@@ -1,6 +1,6 @@
 import express from 'express';
 import { approvedOrders, parseCaktoPayload, verifyBodySecret, verifyCaktoSignature } from './cakto.js';
-import { enqueueOrder } from './database.js';
+import { enqueueOrder, queueDiagnostics } from './database.js';
 import { firstName, normalizePhone } from './phone.js';
 
 export function createApp({ config, db, logger, onJobsQueued = () => {} }) {
@@ -9,6 +9,11 @@ export function createApp({ config, db, logger, onJobsQueued = () => {} }) {
 
   app.get('/health', (_request, response) => {
     response.json({ ok: true, dryRun: config.dryRun });
+  });
+
+  // Expõe apenas contagens e horários, sem pedido, nome, telefone ou credenciais.
+  app.get('/diagnostics', (_request, response) => {
+    response.json({ ok: true, dryRun: config.dryRun, ...queueDiagnostics(db) });
   });
 
   app.post('/webhooks/cakto', express.raw({ type: 'application/json', limit: '256kb' }), (request, response) => {

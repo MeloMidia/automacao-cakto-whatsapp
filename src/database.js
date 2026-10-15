@@ -145,3 +145,26 @@ export function queueStats(db) {
     return result;
   }, {});
 }
+
+export function queueDiagnostics(db) {
+  const summary = db.prepare(`
+    SELECT
+      MAX(created_at) AS last_job_at,
+      MAX(CASE
+        WHEN status = 'sent' AND whatsapp_message_id NOT LIKE 'dry-run-%' THEN sent_at
+      END) AS last_real_sent_at,
+      MAX(CASE WHEN last_error IS NOT NULL THEN updated_at END) AS last_failure_at,
+      SUM(CASE
+        WHEN status = 'sent' AND whatsapp_message_id LIKE 'dry-run-%' THEN 1 ELSE 0
+      END) AS dry_run_sent
+    FROM message_jobs
+  `).get();
+
+  return {
+    queue: queueStats(db),
+    lastJobAt: summary.last_job_at || null,
+    lastRealSentAt: summary.last_real_sent_at || null,
+    lastFailureAt: summary.last_failure_at || null,
+    dryRunSent: Number(summary.dry_run_sent || 0),
+  };
+}

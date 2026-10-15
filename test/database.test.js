@@ -3,7 +3,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { claimNextJob, createDatabase, enqueueOrder, markSent, queueStats } from '../src/database.js';
+import {
+  claimNextJob,
+  createDatabase,
+  enqueueOrder,
+  markSent,
+  queueDiagnostics,
+  queueStats,
+} from '../src/database.js';
 
 test('deduplica o mesmo pedido e conclui a tarefa', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cakto-whatsapp-'));
@@ -25,6 +32,12 @@ test('deduplica o mesmo pedido e conclui a tarefa', () => {
 
     markSent(db, claimed.id, 'wamid.123');
     assert.deepEqual(queueStats(db), { sent: 1 });
+    const diagnostics = queueDiagnostics(db);
+    assert.deepEqual(diagnostics.queue, { sent: 1 });
+    assert.equal(diagnostics.dryRunSent, 0);
+    assert.ok(diagnostics.lastJobAt);
+    assert.ok(diagnostics.lastRealSentAt);
+    assert.equal(diagnostics.lastFailureAt, null);
   } finally {
     db.close();
     fs.rmSync(directory, { recursive: true, force: true });
