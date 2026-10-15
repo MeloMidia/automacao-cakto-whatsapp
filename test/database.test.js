@@ -30,3 +30,27 @@ test('deduplica o mesmo pedido e conclui a tarefa', () => {
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('permite reenviar em modo real um pedido concluído em dry-run', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cakto-replay-'));
+  const db = createDatabase(path.join(directory, 'test.sqlite'));
+  const job = {
+    orderId: 'pedido-dry-run',
+    phone: '5511999999999',
+    customerFirstName: 'Maria',
+    productName: 'Curso',
+  };
+
+  try {
+    assert.equal(enqueueOrder(db, job), true);
+    const claimed = claimNextJob(db, 5);
+    markSent(db, claimed.id, 'dry-run-pedido-dry-run');
+
+    assert.equal(enqueueOrder(db, job), false);
+    assert.equal(enqueueOrder(db, job, { replayDryRun: true }), true);
+    assert.deepEqual(queueStats(db), { pending: 1 });
+  } finally {
+    db.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

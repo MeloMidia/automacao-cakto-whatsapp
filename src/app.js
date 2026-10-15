@@ -49,12 +49,16 @@ export function createApp({ config, db, logger, onJobsQueued = () => {} }) {
 
     for (const order of orders) {
       try {
-        const inserted = enqueueOrder(db, {
-          orderId: String(order.id),
-          phone: normalizePhone(order.customer.phone),
-          customerFirstName: firstName(order.customer.name),
-          productName: String(order.product.name || 'curso').slice(0, 120),
-        });
+        const inserted = enqueueOrder(
+          db,
+          {
+            orderId: String(order.id),
+            phone: normalizePhone(order.customer.phone),
+            customerFirstName: firstName(order.customer.name),
+            productName: String(order.product.name || 'curso').slice(0, 120),
+          },
+          { replayDryRun: !config.dryRun },
+        );
         if (inserted) queued += 1;
         else duplicates += 1;
       } catch (error) {

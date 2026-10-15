@@ -42,11 +42,27 @@ export function createDatabase(databasePath) {
   return db;
 }
 
-export function enqueueOrder(db, job) {
+export function enqueueOrder(db, job, { replayDryRun = false } = {}) {
+  const conflictClause = replayDryRun
+    ? `DO UPDATE SET
+        phone = excluded.phone,
+        customer_first_name = excluded.customer_first_name,
+        product_name = excluded.product_name,
+        status = 'pending',
+        attempts = 0,
+        next_attempt_at = CURRENT_TIMESTAMP,
+        whatsapp_message_id = NULL,
+        last_error = NULL,
+        sent_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE message_jobs.status = 'sent'
+        AND message_jobs.whatsapp_message_id LIKE 'dry-run-%'`
+    : 'DO NOTHING';
+
   const result = db.prepare(`
     INSERT INTO message_jobs (order_id, phone, customer_first_name, product_name)
     VALUES (?, ?, ?, ?)
-    ON CONFLICT(order_id) DO NOTHING
+    ON CONFLICT(order_id) ${conflictClause}
   `).run(job.orderId, job.phone, job.customerFirstName, job.productName);
 
   return result.changes === 1;
