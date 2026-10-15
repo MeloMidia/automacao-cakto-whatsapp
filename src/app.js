@@ -62,7 +62,7 @@ export function createApp({ config, db, logger, onJobsQueued = () => {} }) {
             customerFirstName: firstName(order.customer.name),
             productName: String(order.product.name || 'curso').slice(0, 120),
           },
-          { replayDryRun: !config.dryRun },
+          { replayRecoverable: !config.dryRun },
         );
         if (inserted) queued += 1;
         else duplicates += 1;

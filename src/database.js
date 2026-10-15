@@ -42,8 +42,8 @@ export function createDatabase(databasePath) {
   return db;
 }
 
-export function enqueueOrder(db, job, { replayDryRun = false } = {}) {
-  const conflictClause = replayDryRun
+export function enqueueOrder(db, job, { replayRecoverable = false } = {}) {
+  const conflictClause = replayRecoverable
     ? `DO UPDATE SET
         phone = excluded.phone,
         customer_first_name = excluded.customer_first_name,
@@ -55,8 +55,11 @@ export function enqueueOrder(db, job, { replayDryRun = false } = {}) {
         last_error = NULL,
         sent_at = NULL,
         updated_at = CURRENT_TIMESTAMP
-      WHERE message_jobs.status = 'sent'
-        AND message_jobs.whatsapp_message_id LIKE 'dry-run-%'`
+      WHERE message_jobs.status IN ('retry', 'failed')
+        OR (
+          message_jobs.status = 'sent'
+          AND message_jobs.whatsapp_message_id LIKE 'dry-run-%'
+        )`
     : 'DO NOTHING';
 
   const result = db.prepare(`
